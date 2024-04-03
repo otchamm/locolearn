@@ -1,0 +1,92 @@
+% Master code for all currently possible individual limb plots
+
+% Define output path for plots with means of all 4 limbs:
+  ds{1}.output_path = fullfile(data_dir, 'IndividualLimbs\RightF');
+  ds{2}.output_path = fullfile(data_dir, 'IndividualLimbs\RightF');
+  ds{3}.output_path = fullfile(data_dir, 'IndividualLimbs\LeftF');
+  ds{4}.output_path = fullfile(data_dir, 'IndividualLimbs\LeftF');
+  ds{5}.output_path = fullfile(data_dir, 'IndividualLimbs\RightF');
+  ds{6}.output_path = fullfile(data_dir, 'IndividualLimbs\RightF');
+  ds{7}.output_path = fullfile(data_dir, 'IndividualLimbs\LeftF');
+  ds{8}.output_path = fullfile(data_dir, 'IndividualLimbs\LeftF');
+
+% Input parameters you want to plot and their labels
+% Split Belt Parameters
+params = {'coo_body', 'double_support', 'phase_st_HL', 'step_length'};
+param_labels = {'center of oscillation (mm)', 'double support', 'stance phase (% of stride cycle)', 'step length'}; %, 'stance phase (% of stride cycle)'};
+
+% Establish which experiments (ds) we want to create plots for; gets rid of empty cells
+ds = ds(~cellfun('isempty', ds));
+
+% Establish what limbs you want to compare
+limbs = [1,2,3,4]; %FR HR FL HL
+limb_names = {'FR' 'HR' 'FL' 'HL'};
+
+% Select the experiments you want to compare
+%DTX RIGHTF = 1, PBS RIGHTF = 2, DTX LEFTF = 3, PBS LEFTF = 4, PRE DTX RIGHTF = 5, PRE PBS RIGHTF = 6, PRE DTX LEFTF = 7, PRE PBS LEFTF = 8
+plot_list = {1}; %[2,6]}; %{[1,5], [2,6], [3,7], [4,8]}; %{[1,3] [2,4]}; %
+
+%Determine how to calculate A and AE
+calcAdpt = {'1 late 1 early', '2 late 1 early'};
+calcAfterE = {'1 point', '2 points'};
+
+% Define new parameter: phase_st_HL (Establish phase stance relative to hind left)
+for i = 1:length(ds)
+   ds{i}.data.regular.vars.phase_st_HL = ds{i}.data.regular.vars.phase_st{1, 4}; %isolate data with ref to HL
+   ds{i}.data.regular.vars.phase_st_HL = (ds{i}.data.regular.vars.phase_st_HL /(2*pi)) *100; %calcul to percent
+
+   ds{i}.data.regular.vars.phase_st_HL(ds{i}.data.regular.vars.phase_st_HL<-30) = ds{i}.data.regular.vars.phase_st_HL(ds{i}.data.regular.vars.phase_st_HL<-30) + 100; %normalize phases, else data can jump from -50 to 50
+end
+
+% Assign limb colors for representation in plot
+% For split session plots for all trials
+color_limb = {'-r', '-m', '-b', '-c'};
+rgb_color_limb = {[1 0 0] [1 0 1] [0 0 1] [0 1 1]};
+
+% For phase comparison plots
+color_limb_scatter = {'ro', 'mo', 'bo', 'co'};
+color_limb_scatter_indiv = {'rd', 'md', 'bd', 'cd'};
+rgb_color_limb_indiv = {[1 0 0 0.5] [1 0 1 0.5] [0 0 1 0.5] [0 1 1 0.5]};
+
+% color_limb = {'ro', 'mo', 'bo', 'co'}; %For tied sessions
+% rgb_color_limb = {[1 0 0] [1 0 1] [0 0 1] [0 1 1]};
+
+% INDIVIDUAL + MEAN ANIMAL LIMB PARAMETERS
+tic;
+
+for j = 1:length(ds)
+    create_folder_path(ds{j}.output_path);
+    
+    for p = 1:length(params)
+      indiv_limbs_subplots(ds{j}.data, ds{j}.show_trials, ds{j}.animals, limbs, params{p}, param_labels{p}, color_limb, ds{j}.output_path);
+      indiv_limbs_means(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.show_trials, ds{j}.data, color_limb, rgb_color_limb, ds{j}.caption, ds{j}.output_path);
+      indiv_limbs_means_bs(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.show_trials, ds{j}.data, color_limb, rgb_color_limb, ds{j}.caption, ds{j}.output_path);
+      indiv_limbs_subplots_bs(ds{j}.data, ds{j}.show_trials, ds{j}.animals, ds{j}.caption, limbs, limb_names, params{p}, param_labels{p}, color_limb, ds{j}.output_path);
+    end
+end
+
+% PHASE COMPARISONS BY LIMB, EXPERIMENT
+for d = 1:length(calcAdpt)
+    for p = 1:length(params)
+        for j = 1:length(ds)
+            create_folder_path(ds{j}.output_path);
+            [y, all_ie, all_adpt, all_ae] = plot_indiv_limbs_a_ae_comparisons(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.data, calcAdpt{d}, calcAfterE{d}, color_limb_scatter, ds{j}.caption, ds{j}.output_path); hold on;
+
+            all_ies{j} = all_ie;
+            all_adpts{j} = all_adpt;
+            all_aes{j} = all_ae;
+            all_y{j} = y; 
+        end
+
+          if p == 1
+            plot_FR_FL_relationship(all_y, ds, params{p}, exp_animals, plot_list, data_dir);
+          else
+          end
+      indiv_limbs_compare_phase_by_exp(params{p}, plot_list, all_ies, all_adpts, all_aes, limbs, limb_names, ds, calcAdpt{d}, calcAfterE{d}, color_limb_scatter, color_limb_scatter_indiv, rgb_color_limb_indiv, rgb_color_limb, data_dir);
+      indiv_animals_subplots_bs(all_y, ds, limbs, plot_list, params{p}, param_labels{p}, rgb_color_limb, rgb_color_limb_indiv, data_dir);
+    end
+end
+
+duration = toc;
+
+fprintf('Time Elapsed: %.4f seconds\n', duration);
