@@ -1,0 +1,109 @@
+function indiv_limbs_indiv_animals_subplots(data, x, animal_names, limbs, param, param_label, colors, path)
+% This function makes an individual limbs plot with two subplots (each displaying 2 limbs) for the mean trace across trials for animal in a particular experimental session
+
+% VARIABLES:
+% data is data for the session in question, as determined by the variable 'j' outside the function
+% x is the number of trials in the session (sometimes changes depending on batch)
+% animal_names is the names of every animal in the session of interest
+% limbs is an array of the limb numbers, usually [1, 2, 3, 4]
+% param is the parameter of interest (e.g. 'coo_body')
+% param_label is the parameter label for the plot (e.g. 'center of oscillation (mm)')
+% colors is the corresponding color for each limb (FR - red, HR - pink, FL - dark blue, HL - light blue)
+% path is the saving directory for the plots
+
+% Identify the split sessions, if any
+if ~isnan(data.session_info.first_split)
+    split_sessions = [data.session_info.first_split-0.5 data.session_info.last_split+0.5];
+else
+    split_sessions = [];
+end
+
+% For each animal in the session, plot create a plot comprised of two subplots, each displaying two limbs. The subplots will be arranged vertically based on y-axis (used as an alternative to "breaking" the y-axis)
+for a = 1:length(animal_names)    
+   fig = figure('Position', [680 558 380 450], 'Visible', 'off');
+    for lb = 1:4
+        y(:,lb) = data.regular.vars.(param)(:,lb,a); %Create an array with all of the limb data for the specific animal and parameter we are dealing with
+    end
+
+    for lb = 1:3
+        limb2(1,lb) = abs(y(1,lb+1) - y(1,1)); %Find the limb y-value difference between FR (1) and each of the other limbs
+    end
+
+    %Find the index of the limb with the smallest y-value difference from the FR (1)
+    [b, ind] = min(limb2); 
+    first = [1, ind+1];
+    second = setdiff(limbs, first);
+    
+    %Plot 2 subplots, each representing 2 limbs, based on which limbs are closest to one another (least y-value difference)
+
+    %Plot first subplot
+    for i = 1:length(first)
+        subplot(2, 1, 1);
+        plot(x, y(:,first(i)), colors{first(i)}, 'LineWidth', 2); hold on;
+    end
+    
+    % Add dotted lines at beginning and end of split trials
+    for i = 1:length(split_sessions)
+        xline(split_sessions(i), '--k', 'LineWidth', 0.5);
+    end
+    
+    % Set x axis min and max
+    x_min = 0;
+    x_max = length(x) + 0.5;
+    xlim([x_min, x_max]);
+
+    %Plot second subplot
+    for i = 1:length(second)
+        subplot(2, 1, 2);
+        plot(x, y(:,second(i)), colors{second(i)}, 'LineWidth', 2); hold on;
+    end
+    
+    % Add dotted lines at beginning and end of split trials (only for SBT)
+    for i = 1:length(split_sessions)
+        xline(split_sessions(i), '--k', 'LineWidth', 0.5);
+    end
+
+    %Set x axis min and max
+    x_min = 0;
+    x_max = length(x) + 0.5;
+    xlim([x_min, x_max]);
+
+    %Arrange subplots based on y-range (put y-axis in ascending order from bottom to top)
+    subplotHandles = findall(gcf, 'Type', 'axes');
+    yLimits = zeros(length(subplotHandles), 2);
+
+    for i = 1:length(subplotHandles)
+        yLimits(i, :) = ylim(subplotHandles(i));
+    end
+    
+    [~, sortedIndices] = sort(yLimits(:, 1));
+    
+    for i = 1:length(sortedIndices)
+          set(subplotHandles(sortedIndices(i)), 'Position', [0.1, 0.1 + 0.45*(i-1), 0.8, 0.4]);
+    end
+
+    % Label x-axis, y-axis
+    plotlabel = axes(fig,'Visible','off');
+    plotlabel.XLabel.Visible = 'on';
+    plotlabel.YLabel.Visible='on';
+    xlabel(plotlabel, 'Trials');
+    ylabel(plotlabel, param_label);
+    
+    yLabelHandle = get(gca, 'ylabel');
+    
+    % Adjust the position of the y-label
+    currentPosition = get(yLabelHandle, 'Position');
+    newPosition = currentPosition - [0.0165, 0, 0];  % Move 0.025 units to the left
+    set(yLabelHandle, 'Position', newPosition);
+
+    %Label graph title
+    animal_n = num2str(length(animal_names));
+    annotation('textbox', [0.5, 1, 0, 0], 'String', animal_names{a}, 'HorizontalAlignment', 'center', 'FontSize', 11, 'FontWeight', 'bold');
+    annotation('textbox', [0.7, 0.85, 0.1, 0.1], 'String', ['n = ', animal_n], 'FitBoxToText', 'on', 'EdgeColor', 'none');
+
+    hold off;
+
+    saveas(fig, fullfile(path, [animal_names{a}, ' indiv ', param, ' limb comparisons', '.png']));
+    saveas(fig, fullfile(path, [animal_names{a}, ' indiv ', param, ' limb comparisons', '.fig']));
+
+    close(fig);
