@@ -13,7 +13,7 @@
 % Input parameters you want to plot and their labels
 % Split Belt Parameters
 params = {'coo_body', 'double_support', 'phase_st_HL', 'step_length'};
-param_labels = {'center of oscillation (mm)', 'double support', 'stance phase (% of stride cycle)', 'step length'}; %, 'stance phase (% of stride cycle)'};
+param_labels = {'center of oscillation (mm)', 'double support', 'stance phase (% of stride cycle)', 'step length'};
 
 % Establish which experiments (ds) we want to create plots for; gets rid of empty cells
 ds = ds(~cellfun('isempty', ds));
@@ -59,9 +59,10 @@ for j = 1:length(ds)
     
     for p = 1:length(params)
       indiv_limbs_subplots(ds{j}.data, ds{j}.show_trials, ds{j}.animals, limbs, params{p}, param_labels{p}, color_limb, ds{j}.output_path);
+      indiv_limbs_subplots_bs(ds{j}.data, ds{j}.show_trials, ds{j}.animals, ds{j}.caption, limbs, limb_names, params{p}, param_labels{p}, color_limb, ds{j}.output_path);
       indiv_limbs_means(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.show_trials, ds{j}.data, color_limb, rgb_color_limb, ds{j}.caption, ds{j}.output_path);
       indiv_limbs_means_bs(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.show_trials, ds{j}.data, color_limb, rgb_color_limb, ds{j}.caption, ds{j}.output_path);
-      indiv_limbs_subplots_bs(ds{j}.data, ds{j}.show_trials, ds{j}.animals, ds{j}.caption, limbs, limb_names, params{p}, param_labels{p}, color_limb, ds{j}.output_path);
+      indiv_limbs_animals_bs(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.show_trials, ds{j}.data, rgb_color_limb_indiv, ds{j}.caption, ds{j}.output_path);      
     end
 end
 
@@ -77,7 +78,6 @@ for d = 1:length(calcAdpt)
             all_aes{j} = all_ae;
             all_y{j} = y; 
         end
-
           if p == 1
             plot_FR_FL_relationship(all_y, ds, params{p}, exp_animals, plot_list, data_dir);
           else
