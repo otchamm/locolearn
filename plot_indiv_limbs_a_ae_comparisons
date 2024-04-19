@@ -1,0 +1,84 @@
+function [y, animal_ie, animal_adpt, animal_ae, newPath] = plot_indiv_limbs_a_ae_comparisons(param, param_label, animal_names, x, data, calcA, calcAE, colors, exp_name, path)
+% Function has plotting capabilities, but is currently being used to
+% generate its output variables, which are necessary for the function indiv_limbs_compare_phase_by_exp
+
+baseline_trials = 1:data.session_info.first_split-1;
+n_animals = numel(animal_names);
+animal_indexes = find(ismember(data.animals, animal_names));
+newPath = '\Mean\';
+
+% Calculate baseline average
+for a = 1:n_animals
+    baseline(a,:) = nanmean(data.regular.vars.(param)(baseline_trials, :, animal_indexes(a)));
+end
+
+% Calculate baseline substracted data for experiment
+
+% Calculate I, A, AE across all animals for an experiment. Contains different ways of calculating IE, A, and AE:
+% IE (1 point, average between 2 points), A (1 point - 1 point, 2 points averaged - 2 points averaged, 2 points averaged - 1 point), AE (1 point, average between 2 points)
+
+for a = 1:n_animals
+    y(:,:,a) = data.regular.vars.(param)(:,:,animal_indexes(a)) - baseline(a,:);
+    animal_ie(a,:) = data.regular.vars.(param)(data.session_info.first_split , :, animal_indexes(a)) - baseline(a,:);
+    animal_ie(a,:) = (data.regular.vars.(param)(data.session_info.first_split , :, animal_indexes(a)) + data.regular.vars.(param)((data.session_info.first_split) + 1, :, animal_indexes(a)))/2 - baseline(a,:);
+    if strcmp(calcA, '1 late 1 early') && strcmp(calcAE, '2 points')
+        animal_adpt(a,:) = data.regular.vars.(param)(data.session_info.last_split, :, animal_indexes(a)) - data.regular.vars.(param)(data.session_info.first_split, :, animal_indexes(a));
+        animal_ae(a,:) = (data.regular.vars.(param)(data.session_info.first_ae, :, animal_indexes(a)) + data.regular.vars.(param)((data.session_info.first_ae) + 1, :, animal_indexes(a)))/2 - baseline(a,:);
+    elseif strcmp(calcA, '2 late 1 early') && strcmp(calcAE, '1 point')
+        animal_adpt(a,:) = (data.regular.vars.(param)(data.session_info.last_split, :, animal_indexes(a)) + data.regular.vars.(param)(data.session_info.last_split - 1, :, animal_indexes(a)))/2 - data.regular.vars.(param)(data.session_info.first_split, :, animal_indexes(a));
+        animal_ae(a,:) = data.regular.vars.(param)(data.session_info.first_ae, :, animal_indexes(a)) - baseline(a,:);   
+    end 
+    animal_adpt(a,:) = (data.regular.vars.(param)(data.session_info.last_split, :, animal_indexes(a)) + data.regular.vars.(param)(data.session_info.last_split - 1, :, animal_indexes(a)))/2 - (data.regular.vars.(param)(data.session_info.first_split, :, animal_indexes(a)) + data.regular.vars.(param)(data.session_info.first_split + 1, :, animal_indexes(a)))/2;
+end
+
+%Statistics (ANOVA + posthoc)
+
+%Invert data based on limbs (only left so far, make sure to add right later)
+if strcmp(param, 'coo_body')
+    for i = 3:4
+        animal_adpt(:,i) = -animal_adpt(:,i);
+        animal_ae(:,i) = -animal_ae(:,i);
+    end 
+elseif strcmp(param, 'double_support') || strcmp(param, 'step_length')
+    for i = 3:4
+        animal_adpt(:,i) = -animal_adpt(:,i);
+        animal_ae(:,i) = -animal_ae(:,i);
+    end
+end
+
+% Calculate mean and SD of A, AE across all animals for an experiment
+mean_adpt = nanmean(animal_adpt, 1);
+mean_ae = nanmean(animal_ae, 1);
+mean_ie = nanmean(animal_ie, 1);
+std_adpt(:,:,1) = std(animal_adpt, 1); 
+std_ae(:,:,1) = std(animal_ae, 1);
+std_ie(:,:,1) = std(animal_ie, 1);
+
+% Plot A and AE for each limb
+fig = figure;
+for i = 1:4
+    scatter(x(i)-0.2, mean_adpt(i), colors{i}, 'filled'); hold on;
+    scatter(x(i)+0.2, mean_ae(i), colors{i}); hold on;
+    errorbar(x(i)-0.2, mean_adpt(i), std_adpt(i), 'vertical', colors{i}); hold on;
+    errorbar(x(i)+0.2, mean_ae(i), std_ae(i), 'vertical', colors{i}); hold on;
+end
+
+
+%Label plot
+    if strcmp(param, 'double_support')
+        set(gca, 'YDir', 'reverse');
+    end
+title(exp_name);
+ylabel(param_label);
+yline(0, '--k', 'LineWidth', 0.5, 'HandleVisibility', 'off'); 
+xlim([0.5 4.5]);
+xticks(x);
+xticklabels({'FR', 'HR', 'FL', 'HL'});
+
+% Save figure
+saveas(fig, fullfile(path, [exp_name, ' phase ', param, ' limb comparisons', '.png']));
+saveas(fig, fullfile(path, [exp_name, ' phase ', param, ' limb comparisons', '.fig']));
+
+close(fig);
+
+end
