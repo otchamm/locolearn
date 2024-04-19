@@ -1,6 +1,6 @@
 function plot_FR_FL_relationship(y_all, data, limbs, plot_list, colors, colors2)
-% This function includes the calculations, plotting, and statistics for quantifying the spatial relationship between FR and FL 
-% relative to coo_body (FR-FL)
+% This function includes the calculations, plotting, and statistics for quantifying the spatial relationship between FR and FL relative to coo_body (FR-FL). Only useful when param = 'coo_body', i.e. stipulate "if p == 1" after j for loop has ended but within p for loop.
+
 right_plots = [1, 2, 5, 6];
 left_plots = [3, 4, 7, 8];
 
