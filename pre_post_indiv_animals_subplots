@@ -1,0 +1,92 @@
+function pre_post_indiv_animals_subplots_bs(y_all, data, limbs, plot_list, param, param_label, colors, colors2, path)
+
+% Make an individual limbs trace for each animal in an experiment; each plot produced will correspond to the forelimbs or hindlimbs of one animal in an experiment and include both the pre and post conditions (or whatever conditions you seek to compare, as established by the input plot_list)
+
+% Determine what the split sessions are (if there are any)
+if ~isnan(data{1}.data.session_info.first_split)
+    split_sessions = [data{1}.data.session_info.first_split-0.5 data{1}.data.session_info.last_split+0.5];
+else
+    split_sessions = [];
+end
+
+% Establish which experiment numbers correspond to the right fast vs left fast sessions
+right_plots = [1, 2, 5, 6];
+left_plots = [3, 4, 7, 8];
+
+% For each set of experiments in plot_list, create 2 arrays that house all of the data for the experiments you seek to compare
+for b = 1:length(plot_list)
+    plot_ds = plot_list{b}; 
+    for pl = 1:length(plot_ds)
+        j = plot_ds(pl);
+        if pl == 1
+            all_y1 = y_all{j};
+            exp1_name = data{j}.caption;
+        else
+            all_y2 = y_all{j};
+            exp2_name = data{j}.caption;
+        end
+     animal_names = data{j}.animals;
+     x = data{j}.show_trials;
+    end
+
+% Save files in different folders depending on if you are comparing right plots or left plots
+if any(ismember(plot_ds, right_plots))
+    fullPath = fullfile(path, 'IndividualLimbs\RightF\IndividualAnimals');
+elseif any(ismember(plot_ds, left_plots))
+    fullPath = fullfile(path, 'IndividualLimbs\LeftF\IndividualAnimals');
+end
+
+% Get the number of animals in an experiment
+n_animals = numel(animal_names);
+
+for a = 1:n_animals
+    for lb = 1:2
+        if mod(lb, 2) == 1
+            fig = figure('Position', [680 558 380 450]);
+            plot(x, all_y1(:,lb, a), 'LineWidth', 1.5, 'Color', colors{limbs(lb)}); hold on;
+            plot(x, all_y1(:, lb+2, a), 'LineWidth', 1.5, 'Color', colors{limbs(lb+2)}); hold on;
+            plot(x, all_y2(:,lb, a), 'LineWidth', 1.5, 'Color', colors2{limbs(lb)}); hold on;
+            plot(x, all_y2(:, lb+2, a), 'LineWidth', 1.5, 'Color', colors2{limbs(lb+2)}); hold on;
+            names_limbs = 'Forelimbs';
+        elseif mod(lb, 2) == 0
+            fig = figure('Position', [680 558 380 450]);
+            plot(x, all_y1(:,lb, a), 'LineWidth', 1.5, 'Color', colors{limbs(lb)}); hold on;
+            plot(x, all_y1(:, lb+2, a), 'LineWidth', 1.5, 'Color', colors{limbs(lb+2)}); hold on;
+            plot(x, all_y2(:,lb, a), 'LineWidth', 1.5, 'Color', colors2{limbs(lb)}); hold on;
+            plot(x, all_y2(:, lb+2, a), 'LineWidth', 1.5, 'Color', colors2{limbs(lb+2)}); hold on;
+            names_limbs = 'Hindlimbs';
+        end
+
+    % Plot dashed line at 0
+    line(xlim(),[0,0],'Color','k','LineStyle','--');
+    hold on;
+
+    for i = 1:length(split_sessions)
+        xline(split_sessions(i), '--k', 'LineWidth', 0.5);
+    end
+
+    %Label x-axis, y-axis
+    plotlabel = axes(fig,'Visible','off');
+    plotlabel.XLabel.Visible = 'on';
+    plotlabel.YLabel.Visible='on';
+    xlabel(plotlabel, 'Trials');
+    ylabel(plotlabel, param_label);
+    
+    %Set x axis min and max
+    x_min = 0;
+    x_max = length(x) + 0.5;
+    xlim([x_min, x_max]);
+
+    %Label graph title
+    annotation('textbox', [0.5, 1, 0, 0], 'String', [exp2_name, 'vs', exp1_name], 'HorizontalAlignment', 'center', 'FontSize', 10, 'FontWeight', 'bold');
+    annotation('textbox', [0.60, 0.83, 0.1, 0.1], 'String', animal_names{a}, 'FontSize', 8, 'FontWeight', 'bold', 'FitBoxToText', 'on', 'EdgeColor', 'none');
+
+    hold off;
+
+    saveas(fig, fullfile(fullPath, [animal_names{a}, '_', exp2_name, 'vs' exp1_name, names_limbs, '_', param, '.png']));
+    saveas(fig, fullfile(fullPath, [animal_names{a}, '_', exp2_name, 'vs' exp1_name, names_limbs, '_', param, '.fig']));
+
+    close(fig);
+    end
+end
+end
