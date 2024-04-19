@@ -1,0 +1,98 @@
+function indiv_limbs_medians_animals_bs(param, param_label, animal_names, limbs, x, data, colors, exp_name, path)
+
+median_path = fullfile(path, '\Median');
+create_folder_path(median_path);
+
+%Only include data from animals in experiment
+n_animals = numel(animal_names);
+animal_indexes = find(ismember(data.animals, animal_names));
+
+indv_colz = maxdistcolor(n_animals,@sRGB_to_OKLab, 'inc',[1,0,0]);
+
+% Calculate baseline average
+baseline_trials = 1:data.session_info.first_split-1;
+for a = 1:n_animals
+    baseline(a,:) = nanmedian(data.regular.med.(param)(baseline_trials, :, animal_indexes(a)));
+end
+
+% Determine what the split sessions are (if there are any)
+if ~isnan(data.session_info.first_split)
+    split_sessions = [data.session_info.first_split-0.5 data.session_info.last_split+0.5];
+else
+    split_sessions = [];
+end
+
+% Get the y data for the animal and parameter in question, subtract baseline from all the data
+for i = 1:n_animals
+    y(:,:,i) = data.regular.med.(param)(:,:,animal_indexes(i)) - baseline(i,:);
+end
+
+% Calculate median and IQR
+median_limbs = nanmedian(y, 3);
+
+%Plot everything on a single plot
+limb_order = [3 1 4 2];
+fig = figure('Position', [680 450 350 450]);
+ax = tight_subplot(2,2,[0.05,0.01], [0.05,0.05], [0.15,0.1]);
+for lbs = 1:4
+    lb = limb_order(lbs);
+    axes(ax(lbs));
+%     subplot(2,2,lbs);
+    for a = 1:n_animals
+        qw{a} = plot(x, y(:,lb,a), 'Color', indv_colz(a,:), 'LineWidth', 1); hold on;
+    end
+    plot(x, median_limbs(:,lb), 'Color', colors{limbs(lb)}, 'LineWidth', 2.5); hold on;
+% Remove y-ticks for plots on right
+if lb == 1 || lb == 2
+    set(gca, 'yticklabels', {});
+else
+end
+% Add dotted line at y = 0
+  yline(0, 'k:', 'LineWidth', 0.25);
+
+% Add dotted lines at beginning and end of split trials
+for i = 1:length(split_sessions)
+    xline(split_sessions(i), 'k:', 'LineWidth', 0.25);
+end
+
+%Set x axis min and max
+x_min = 0;
+x_max = length(x) + 0.5;
+xlim([x_min, x_max]);
+
+%Set y axis min and max
+y_min = min(min(y, [], 3));
+y_max = max(max(y, [], 3));
+ 
+if lb == 1 || lb == 3
+    ylim([round(min(y_min(1), y_min(3))) - 1, round(max(y_max(1), y_max(3))) + 1]);
+elseif lb == 2 || lb == 4
+    ylim([round(min(y_min(2), y_min(4))) - 1, round(max(y_max(2), y_max(4))) + 1]);    
+end
+
+if strcmp(param, 'double_support')
+    set(gca, 'YDir', 'reverse');
+end
+
+%Label x and y axes
+plotlabel=axes(fig,'visible','off');
+plotlabel.XLabel.Visible = 'on';
+plotlabel.YLabel.Visible='on';
+% xlabel(plotlabel, 'Trials');
+ylabel(plotlabel, param_label);
+
+yLabelHandle = get(gca, 'ylabel');
+
+% Adjust the position of the y-label
+currentPosition = get(yLabelHandle, 'Position');
+newPosition = currentPosition + [0.04, 0, 0];  % Move x units to the left
+set(yLabelHandle, 'Position', newPosition);
+end
+
+%Label graph title
+annotation('textbox', [0.5, 1, 0, 0], 'String', strcat(exp_name), 'HorizontalAlignment', 'center', 'FontSize', 11, 'FontWeight', 'bold');
+
+saveas(fig, fullfile(median_path, [exp_name, ' median+indiv ', param, ' all limbs', '.png']));
+saveas(fig, fullfile(median_path, [exp_name, ' median+indiv ', param, ' all limbs', '.fig']));
+
+close(fig);
