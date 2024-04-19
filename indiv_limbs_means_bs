@@ -1,0 +1,90 @@
+function indiv_limbs_means_bs(param, param_label, animal_names, limbs, x, data, colors, shading, exp_name, path)
+
+mean_path = fullfile(path, '\Mean');
+create_folder_path(mean_path);
+
+%Only include data from animals in experiment
+n_animals = numel(animal_names);
+animal_indexes = find(ismember(data.animals, animal_names));
+
+% Calculate baseline average
+baseline_trials = 1:data.session_info.first_split-1;
+for a = 1:n_animals
+    baseline(a,:) = nanmean(data.regular.vars.(param)(baseline_trials, :, animal_indexes(a)));
+end
+
+% Determine what the split sessions are (if there are any)
+if ~isnan(data.session_info.first_split)
+    split_sessions = [data.session_info.first_split-0.5 data.session_info.last_split+0.5];
+else
+    split_sessions = [];
+end
+
+% Calculate mean and standard deviation across all animals for an experiment
+
+% Get the y data for the animal and parameter in question, subtract baseline from all the data
+for i = 1:n_animals
+    y(:,:,i) = data.regular.vars.(param)(:,:,animal_indexes(i)) - baseline(i,:);
+end
+
+sum_limbs = nansum(y,3);
+std_limbs = nanstd(y, 0, 3);
+avg_limbs = sum_limbs./length(animal_indexes);
+
+%Plot everything on a single plot
+fig = figure('Position', [680 450 300 450], 'Visible', 'off');
+for lb = 1:length(limbs)
+    plot(x, avg_limbs(:,limbs(lb)), colors{limbs(lb)}, 'LineWidth', 2); hold on;
+    fill_between(x, avg_limbs(:,limbs(lb)), std_limbs(:,limbs(lb)), shading{limbs(lb)});
+end
+
+% Add dotted line at y = 0
+  yline(0, '--k', 'LineWidth', 0.5);
+
+% Add dotted lines at beginning and end of split trials
+for i = 1:length(split_sessions)
+    xline(split_sessions(i), '--k', 'LineWidth', 0.5);
+end
+
+%Set x axis min and max
+x_min = 0;
+x_max = length(x) + 0.5;
+xlim([x_min, x_max]);
+
+%Set y axis min and max
+if strcmp(param, 'coo_body')
+    ylim([-8 8]);
+elseif strcmp(param, 'step_length')
+    ylim([-15 15]);
+elseif strcmp(param, 'phase_st_HL') || strcmp(param, 'phase_st_HR')
+    ylim([-10 8]);
+elseif strcmp(param, 'double_support')
+    ylim([-15 15]);
+    set(gca, 'YDir', 'reverse');
+end
+
+%Label x and y axes
+plotlabel=axes(fig,'visible','off');
+plotlabel.XLabel.Visible = 'on';
+plotlabel.YLabel.Visible='on';
+xlabel(plotlabel, 'Trials');
+ylabel(plotlabel, param_label);
+
+yLabelHandle = get(gca, 'ylabel');
+
+% Adjust the position of the y-label
+currentPosition = get(yLabelHandle, 'Position');
+newPosition = currentPosition + [0.0165, 0, 0];  % Move x units to the left
+set(yLabelHandle, 'Position', newPosition);
+
+%Label graph title
+n_animals = num2str(length(animal_names));
+annotation('textbox', [0.5, 1, 0, 0], 'String', strcat(exp_name), 'HorizontalAlignment', 'center', 'FontSize', 11, 'FontWeight', 'bold');
+annotation('textbox', [0.7, 0.8, 0.1, 0.1], 'String', ['n = ', n_animals], 'FitBoxToText', 'on', 'EdgeColor', 'none');
+
+saveas(fig, fullfile(mean_path, [exp_name, ' mean ', param, ' limb comparisons', '.png']));
+saveas(fig, fullfile(mean_path, [exp_name, ' mean ', param, ' limb comparisons', '.fig']));
+
+close(fig);
+
+end
