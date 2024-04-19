@@ -77,6 +77,8 @@ for d = 1:length(calcAdpt)
             all_adpts{j} = all_adpt;
             all_aes{j} = all_ae;
             all_y{j} = y; 
+
+            normal_dist_test(all_y{j}, all_aes{j}, all_adpts{j}, ds{j}.animals, params{p}, param_labels{p}, limbs, limb_names, ds{j}.caption, data_dir);
         end
           if p == 1
             plot_FR_FL_relationship(all_y, ds, params{p}, exp_animals, plot_list, data_dir);
