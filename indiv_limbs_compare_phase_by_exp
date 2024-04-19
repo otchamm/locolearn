@@ -1,0 +1,454 @@
+function indiv_limbs_compare_phase_by_exp(param, plot_list, ie_all, adpt_all, ae_all, x, limb_label, data, calcA, calcAE, col, col2, colors, colors2, path, pathNew)
+% This function creates plots that compare summary points (IE, A, AE) for two experiments as determined by the input "plot_list" which is determined in indiv_limbs_Amma
+% 
+% param = the parameter we are plotting for
+% plot_list = the cell array containing two plots per cell; each cell contains the two plots you seek to plot against each other, e.g. pre and post
+% ie_all = all the initial errors for each experiment; each cell of ie_all corresponds to an exp and each row corresponds to an animal
+% adpt_all = all the adaptations for each experiment; same structure as ie_all
+% ae_all = all the after effects for each experiment
+% x = number of limbs, input as [1, 2, 3, 4] 
+% data = ds; the master array of all data
+% col = colors for each limb in scatterplot notation, as circles
+% col2 = colors for each limb in scatterplot notation, as diamonds
+% colors = colors for each limb in rgb notation
+% colors2 = colors for each limb in rgb notation w reduced transparency
+% path = data_dir, defined at top of experiment function (e.g. RN7-57.m)
+fileFolder = fullfile(path, 'IndividualLimbs\All\Not Normalized\');
+statsFolder = fullfile(fileFolder, 'Stats\');
+
+if strcmp(calcA, '1 late 1 early') && strcmp(calcAE, '2 points')
+    fileFolder1 = fullfile(fileFolder, 'Adpt\1 late, 1 early');
+    fileFolder2 = fullfile(fileFolder, 'AE\2 points');
+    create_folder_path(fileFolder1);
+    create_folder_path(fileFolder2);
+    stats = false;
+elseif strcmp(calcA, '2 late 1 early') && strcmp(calcAE, '1 point')
+    fileFolder1 = fullfile(fileFolder, 'Adpt\2 late, 1 early');
+    fileFolder2 = fullfile(fileFolder, 'AE\1 point');
+    create_folder_path(fileFolder1);
+    create_folder_path(fileFolder2);
+    stats = true;
+    create_folder_path(statsFolder);
+end
+
+%Cycle through plot list, one experiment pair at a time. Every variable with a "1" = post condition; every variable w a "2" = pre
+for b = 1:length(plot_list)
+    plot_ds = plot_list{b}; 
+    for pl = 1:length(plot_ds)
+        j = plot_ds(pl);
+        if pl == 1
+            all_ie1 = reshape(ie_all{j}, length(ie_all{j}), 4);
+            all_adpt1 = reshape(adpt_all{j}, length(adpt_all{j}), 4);
+            all_ae1 = reshape(ae_all{j}, length(ae_all{j}), 4);
+        
+            exp1_name = data{j}.caption;
+            animal_names1 = data{j}.animals;
+        else
+            all_ie2 = reshape(ie_all{j}, length(ie_all{j}), 4);
+            all_adpt2 = reshape(adpt_all{j}, length(adpt_all{j}), 4);
+            all_ae2 = reshape(ae_all{j}, length(ae_all{j}), 4);
+          
+            exp2_name = data{j}.caption;
+            animal_names2 = data{j}.animals;
+        end
+    end
+animal_names = animal_names2;
+
+right_plots = [1, 2, 5, 6];
+left_plots = [3, 4, 7, 8];
+
+% STATISTICS
+% Get number of animals after exclusions
+[n_animals1, ~] = size(all_ae1);
+[n_animals2, ~] = size(all_ae2);
+n_animals = max(n_animals2, n_animals1);
+
+if n_animals1 == n_animals2
+% Paired sample t-test
+    for lb = 1:length(x)
+        [~, p1] = ttest(all_adpt1(:,lb), all_adpt2(:,lb));
+        pT_adpt(lb,:) = p1;
+        [~, p2] = ttest(all_ae1(:,lb), all_ae2(:,lb));
+        pT_ae(lb,:) = p2;
+    end
+else
+% Unpaired t-test
+    for lb = 1:length(x)
+        [~, p1] = ttest2(all_adpt1(:,lb), all_adpt2(:,lb));
+        pT_adpt(lb,:) = p1;
+        [~, p2] = ttest2(all_ae1(:,lb), all_ae2(:,lb));
+        pT_ae(lb,:) = p2;
+    end
+end
+% Wilcoxon Test
+for lb = 1:length(x)
+    [p1, ~] = signrank(all_adpt1(:,lb), all_adpt2(:,lb));
+    pW_adpt(lb,:) = p1;
+    [p2, ~] = signrank(all_ae1(:,lb), all_ae2(:,lb));
+    pW_ae(lb,:) = p2;
+end
+
+% Save excel file with all of the p-values
+if stats
+    columnNames = {'Adaptation', 'AE'};
+    rowNames = {'FR', 'HR', 'FL', 'HL'};
+    
+    pT_table = table(pT_adpt, pT_ae, 'VariableNames', columnNames, 'RowNames', rowNames);
+    pW_table = table(pW_adpt, pW_ae, 'VariableNames', columnNames, 'RowNames', rowNames);
+    filePathT = fullfile(statsFolder, [param, ' (T-test)', '.xlsx']);
+    filePathW = fullfile(statsFolder, [param, ' (Wilcoxon)', '.xlsx']);
+    
+    if exist(filePathT, 'file') == 2
+        if numel(sheetnames(filePathT)) < 4
+            writetable(pT_table, filePathT, 'Sheet', exp2_name, 'WriteMode', 'append');
+        else
+
+        end
+    else
+        writetable(pT_table, filePathT, 'Sheet', exp2_name);
+    end
+
+    if exist(filePathW, 'file') == 2
+        if numel(sheetnames(filePathW)) < 4
+            writetable(pW_table, filePathW, 'Sheet', exp2_name, 'WriteMode', 'append');
+        else
+
+        end
+    else
+        writetable(pW_table, filePathW, 'Sheet', exp2_name);
+    end
+else
+end
+
+% Invert left/right limbs for coo_body (if param is coo_body, will invert right for leftF condition and left for rightF condition)
+    if strcmp(param, 'coo_body')
+        if any(ismember(plot_ds, left_plots))
+            for i = 1:2
+                all_adpt1(:,i) = -all_adpt1(:,i);
+                all_adpt2(:,i) = -all_adpt2(:,i);
+                all_ae1(:,i) = -all_ae1(:,i);
+                all_ae2(:,i) = -all_ae2(:,i);
+            end
+        elseif any(ismember(plot_ds, right_plots))
+            for i = 3:4
+                all_adpt1(:,i) = -all_adpt1(:,i);
+                all_adpt2(:,i) = -all_adpt2(:,i);
+                all_ae1(:,i) = -all_ae1(:,i);
+                all_ae2(:,i) = -all_ae2(:,i);
+            end
+        end
+% Exclude HR from plot for coo_body
+%         if length(x) == 4
+%             all_adpt1(:,2) = [];
+%             all_ae1(:,2) = [];
+%             all_adpt2(:,2) = [];
+%             all_ae2(:,2) = [];
+%             p_ae(2) = [];
+%             p_adpt(2) = [];
+%             col(2) = [];
+%             col2(2) = [];
+%             colors(2) = [];
+%             colors2(2) = [];
+%             x = 1:3;
+%             limb_label = {'FR', 'FL', 'HL'};
+%         else  
+%         end
+    elseif strcmp(param, 'double_support') || strcmp(param, 'step_length')
+        if any(ismember(plot_ds, left_plots))
+            for i = 1:2
+                all_adpt1(:,i) = -all_adpt1(:,i);
+                all_adpt2(:,i) = -all_adpt2(:,i);
+                all_ae1(:,i) = -all_ae1(:,i);
+                all_ae2(:,i) = -all_ae2(:,i);
+            end
+        elseif any(ismember(plot_ds, right_plots))
+            for i = 3:4
+                all_adpt1(:,i) = -all_adpt1(:,i);
+                all_adpt2(:,i) = -all_adpt2(:,i);
+                all_ae1(:,i) = -all_ae1(:,i);
+                all_ae2(:,i) = -all_ae2(:,i);
+            end
+        end
+    end
+
+% Calculate mean, standard deviation, and standard error for each experiment
+    mean_ie1 = nanmean(all_ie1);
+    mean_adpt1 = nanmean(all_adpt1);
+    mean_ae1 = nanmean(all_ae1);
+    
+    mean_ie2 = nanmean(all_ie2);
+    mean_adpt2 = nanmean(all_adpt2);
+    mean_ae2 = nanmean(all_ae2);
+    
+    %Combine mean and SEM A and AE for each experiment into a single array for the experiment
+    plot_exp1 = vertcat(mean_adpt1, mean_ae1);
+    plot_exp2 = vertcat(mean_adpt2, mean_ae2);
+
+    %Combine both As, AEs from experiment 1 and 2 to draw lines connecting the pre and post condition on the graph
+    plot_adpt = vertcat(mean_adpt2, mean_adpt1);
+    plot_ae = vertcat(mean_ae2, mean_ae1);
+
+    % Plot individual animals, then mean of A, AE for both experiments(separate for loops so mean is plotted on top of individual animal points)
+    x_1 = [1:2]; %x_1 is [1:2] because we are comparing 2 phases (A and AE)
+    x_2 = vertcat(linspace((x_1(1)-0.2) - 0.05, (x_1(1)-0.2) + 0.05, length(x)), linspace((x_1(2)-0.2) - 0.05, (x_1(2)-0.2) + 0.05, length(x)));
+    x_3 = vertcat(linspace((x_1(1)+0.2) - 0.05, (x_1(1)+0.2) + 0.05, length(x)), linspace((x_1(2)+0.2) - 0.05, (x_1(2)+0.2) + 0.05, length(x)));
+    indv_colz = maxdistcolor(n_animals,@sRGB_to_OKLab, 'inc',[1,0,0]);
+    
+    for q = 1:length(x)
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+%Plot both A and AE
+        fig = figure('Position', [680 558 400 450]);
+        for z = 1:length(x_1)
+                for a = 1:n_animals
+                    if n_animals == 2
+                        for t = 1:length(x_1)
+                            plot_all2 = [all_adpt2(:,q) all_ae2(:,q)];
+                            plot(x_2(:,q), plot_all2(t,:), col{q}, 'MarkerSize', 4); hold on;
+                            plot_all1 = [all_adpt1(:,q) all_ae1(:,q)];
+                            plot(x_3(:,q), plot_all1(t,:), col2{q}, 'MarkerSize', 4); hold on;
+
+                            if z == 1
+                                plot_all2 = [all_adpt2(:,q) all_adpt1(:,q)];
+                                line([x_2(1,q) x_3(1,q)], plot_all2(t,:), 'Color', colors{q}, 'LineWidth', 1);
+                            elseif z == 2
+                                plot_ae_all = [all_ae2(:,q) all_ae1(:,q)];
+                                line([x_2(2,q) x_3(2,q)], plot_ae_all(t,:), 'Color', colors{q}, 'LineWidth', 1);
+                            end
+
+                        end
+                    else
+                        plot(x_2(1,q), all_adpt2(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+                        plot(x_2(2,q), all_ae2(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+                        plot(x_3(1,q), all_adpt1(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+                        plot(x_3(2,q), all_ae1(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+
+                        if z == 1
+                            qw{a} = line([x_2(z,q) x_3(z, q)], [all_adpt2(a,q) all_adpt1(a,q)], 'Color', indv_colz(a,:), 'LineWidth', 1);
+                        elseif z == 2
+                            qw{a} = line([x_2(z,q) x_3(z, q)], [all_ae2(a,q) all_ae1(a,q)], 'Color', indv_colz(a,:), 'LineWidth', 1); hold on;
+                        end
+                    end
+                end
+            plot(x_2(:,q), plot_exp2(:,q), col{q},'LineWidth', 1.5, 'MarkerFaceColor', colors2{q}); hold on; 
+            plot(x_3(:,q), plot_exp1(:,q), col2{q}, 'LineWidth', 1.5, 'MarkerFaceColor', colors2{q}); hold on;
+            if z == 1
+                line([x_2(z,q) x_3(z, q)], plot_adpt(:,q), 'Color', colors2{q}, 'LineWidth', 2);
+            elseif z == 2
+                line([x_2(z,q) x_3(z, q)], plot_ae(:,q), 'Color', colors2{q}, 'LineWidth', 2); %Turned z to 2
+            end
+
+%         Add labels and legend to each plot        
+%         Plot legend and set the plot area size constant
+            set(gcf, 'unit', 'inches'); % set unit for figure size to inches
+            figure_size =  get(gcf, 'position'); % get the original size of figure before the legends are added
+            add legend
+            lgd = legend('-DynamicLegend');
+            lgd.FontSize = 8;
+            get handle for the legend
+            h_legend = legend([qw{:}], animal_names);
+            set(h_legend, 'location', 'southeastoutside');
+            set(h_legend, 'unit', 'inches') % set unit for legend size to inches
+            legend_size = get(h_legend, 'position'); % get legend size
+            figure_size(3) = figure_size(3) + legend_size(3); % new figure width
+            set(gcf, 'position', figure_size); % set new figure size        
+            legend boxoff;    
+%         Add features to graph (dashed line at y = 0, title, y-label, xticks, number of animals)            
+            title([exp2_name ' vs ' exp1_name]);
+            ylabel(param);
+            xlim([0.5 2.5]);
+            xticks(x_1);
+            xticklabels({'A', 'AE'});
+            yline(0, '--k', 'LineWidth', 0.5, 'HandleVisibility', 'off'); 
+            annotation('textbox', [0.2, 0.82, 0.1, 0.1], 'String', ['p = ', num2str(p_adpt(q))], 'EdgeColor', 'none', 'FontSize', 8);
+            annotation('textbox', [0.52, 0.82, 0.1, 0.1], 'String', ['p = ', num2str(p_ae(q))], 'EdgeColor', 'none', 'FontSize', 8);
+
+            n_animals = num2str(n_animals);
+            annotation('textbox', [0.7, 0.8, 0.1, 0.1], 'String', ['n = ', n_animals], 'FitBoxToText', 'on', 'EdgeColor', 'none');
+            n_animals = str2double(n_animals);
+        end
+    saveas(fig, fullfile(fileFolder, [exp2_name, '_vs_', exp1_name, '-', limb_label{q}, ' ', param, '.png']));
+    saveas(fig, fullfile(fileFolder, [exp2_name, '_vs_', exp1_name, '-', limb_label{q}, ' ', param, '.fig']));
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+% Plot just A
+        fig1 = figure('Position', [680 558 250 450], 'Visible', 'Off');
+        if n_animals1 == n_animals2
+            for a = 1:n_animals1
+                plot(x_2(1,q), all_adpt2(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+                plot(x_3(1,q), all_adpt1(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+                qw{a} = line([x_2(1,q) x_3(1,q)], [all_adpt2(a,q) all_adpt1(a,q)], 'Color', indv_colz(a,:), 'LineWidth', 1);
+            end
+        else
+            for a = 1:n_animals2
+                qw2{a} = plot(x_2(1,q), all_adpt2(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+            end
+            for a = 1:n_animals1
+                qw1{a} = plot(x_3(1,q), all_adpt1(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+            end
+        end
+        scatter(x_2(1,q), plot_exp2(1,q), col{q},'SizeData', 60, 'MarkerFaceColor', colors2{q}, 'MarkerFaceAlpha', 0.6, 'MarkerEdgeColor', 'none'); hold on;
+        scatter(x_3(1,q), plot_exp1(1,q), col2{q}, 'SizeData', 60, 'MarkerFaceColor', colors2{q}, 'MarkerFaceAlpha', 0.6, 'MarkerEdgeColor', 'none'); hold on;
+        line([x_2(1,q) x_3(1,q)], plot_adpt(:,q), 'Color', colors{q}, 'LineWidth', 2);
+
+    % Add labels and legend to each plot        
+        % plot legend and set the plot area size constant
+        set(gcf, 'unit', 'inches'); % set unit for figure size to inches
+        figure_size =  get(gcf, 'position'); % get the original size of figure before the legends are added
+        % add legend
+    if n_animals1 == n_animals2
+        lgd = legend('-DynamicLegend');
+        lgd.FontSize = 8;
+        % get handle for the legend
+        h_legend = legend([qw{:}], animal_names);
+        set(h_legend, 'location', 'southeastoutside');
+        set(h_legend, 'unit', 'inches') % set unit for legend size to inches
+        legend_size = get(h_legend, 'position'); % get legend size
+        figure_size(3) = figure_size(3) + legend_size(3); % new figure width
+        set(gcf, 'position', figure_size); % set new figure size
+    
+        set(gca, 'FontSize', 12);
+        legend boxoff;
+    else
+        lgd2 = legend('-DynamicLegend');
+        lgd2.FontSize = 8;
+        % get handle for the legend
+        h2_legend = legend([qw2{:}], animal_names2);
+        set(h2_legend, 'location', 'southeastoutside');
+        set(h2_legend, 'unit', 'inches') % set unit for legend size to inches
+        legend_size = get(h2_legend, 'position'); % get legend size
+        legend boxoff;
+        
+        figure_size(3) = figure_size(3) + legend_size(3); % new figure width
+        set(gcf, 'position', figure_size); % set new figure size
+        hold on;
+
+        lgd1 = legend('-DynamicLegend');
+        lgd1.FontSize = 8;
+        % get handle for the legend
+        h1_legend = legend([qw1{:}], animal_names1);
+        set(h1_legend, 'location', 'northeastoutside');
+        set(h1_legend, 'unit', 'inches') % set unit for legend size to inches
+        legend_size = get(h1_legend, 'position'); % get legend size
+        legend boxoff;
+    
+        set(gca, 'FontSize', 12);
+    end
+
+        %Add features to graph (dashed line at y = 0, title, y-label, xticks, number of animals)            
+        title([exp2_name ' vs ' exp1_name]);
+        ylabel(param);
+        xlim([0.5 1.5]);
+        xticks(1);
+        xticklabels({'A'});
+        yline(0, '--k', 'LineWidth', 0.5, 'HandleVisibility', 'off');
+        
+        if strcmp(param, 'coo_body')
+            ylim([-2 3]);
+        elseif strcmp(param, 'double_support')
+            ylim([-5 3]);
+        elseif strcmp(param, 'step_length')
+            ylim([-3 4]);
+        end
+        
+        if strcmp(param, 'double_support')
+            set(gca, 'YDir', 'reverse');
+        end
+        
+        annotation('textbox', [0.58, 0.52, 0.1, 0.1], 'String', [exp2_name ' vs ' exp1_name], 'EdgeColor', 'none', 'FontSize', 8, 'FontWeight', 'bold');
+        annotation('textbox', [0.2, 0.82, 0.1, 0.1], 'String', ['p = ', num2str(pT_adpt(q))], 'EdgeColor', 'none', 'FontSize', 8);
+        
+        create_folder_path(fullfile(fileFolder1, pathNew));
+
+        saveas(fig1, fullfile(fileFolder1, pathNew, ['Adpt_', exp2_name, '_vs_', exp1_name, '-', limb_label{q}, ' ', param, '.png']));
+        saveas(fig1, fullfile(fileFolder1, pathNew, ['Adpt_', exp2_name, '_vs_', exp1_name, '-', limb_label{q}, ' ', param, '.fig']));
+%--------------------------------------------------------------------------------------------------------------------------------------------------
+% Plot just AE
+        fig2 = figure('Position', [680 558 250 450], 'Visible', 'Off');
+        if n_animals1 == n_animals2
+            for a = 1:n_animals1
+                plot(x_2(2,q), all_ae2(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+                plot(x_3(2,q), all_ae1(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+                qw{a} = line([x_2(2,q) x_3(2,q)], [all_ae2(a,q) all_ae1(a,q)], 'Color', indv_colz(a,:), 'LineWidth', 1); hold on;       
+            end
+        else
+            for a = 1:n_animals2
+                qw2{a} = plot(x_2(2,q), all_ae2(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+            end
+            for a = 1:n_animals1
+                qw1{a} = plot(x_3(2,q), all_ae1(a,q), 'Color', indv_colz(a,:), 'Marker', 'o', 'MarkerSize', 4); hold on;
+            end
+        end
+        scatter(x_2(2,q), plot_exp2(2,q), col{q},'SizeData', 60, 'MarkerFaceColor', colors2{q}, 'MarkerFaceAlpha', 0.6, 'MarkerEdgeColor', 'none'); hold on;
+        scatter(x_3(2,q), plot_exp1(2,q), col2{q}, 'SizeData', 60, 'MarkerFaceColor', colors2{q}, 'MarkerFaceAlpha', 0.6, 'MarkerEdgeColor', 'none'); hold on;
+        line([x_2(2,q) x_3(2,q)], plot_ae(:,q), 'Color', colors{q}, 'LineWidth', 2);
+        
+        % Add labels and legend to each plot        
+        % plot legend and set the plot area size constant
+        set(gcf, 'unit', 'inches'); % set unit for figure size to inches
+        figure_size =  get(gcf, 'position'); % get the original size of figure before the legends are added
+        % add legend
+   if n_animals1 == n_animals2
+        lgd = legend('-DynamicLegend');
+        lgd.FontSize = 8;
+        % get handle for the legend
+        h_legend = legend([qw{:}], animal_names);
+        set(h_legend, 'location', 'southeastoutside');
+        set(h_legend, 'unit', 'inches') % set unit for legend size to inches
+        legend_size = get(h_legend, 'position'); % get legend size
+        figure_size(3) = figure_size(3) + legend_size(3); % new figure width
+        set(gcf, 'position', figure_size); % set new figure size
+    
+        set(gca, 'FontSize', 12);
+        legend boxoff;
+
+    else
+        lgd2 = legend('-DynamicLegend');
+        lgd2.FontSize = 8;
+        % get handle for the legend
+        h2_legend = legend([qw2{:}], animal_names2);
+        set(h2_legend, 'location', 'southeastoutside');
+        set(h2_legend, 'unit', 'inches') % set unit for legend size to inches
+        legend_size = get(h2_legend, 'position'); % get legend size
+        legend boxoff;
+        
+        figure_size(3) = figure_size(3) + legend_size(3); % new figure width
+        set(gcf, 'position', figure_size); % set new figure size
+
+        lgd1 = legend('-DynamicLegend');
+        lgd1.FontSize = 8;
+        % get handle for the legend
+        h1_legend = legend([qw1{:}], animal_names1);
+        set(h1_legend, 'location', 'northeastoutside');
+        legend boxoff;  
+        set(gca, 'FontSize', 12);
+   end   
+        % Add features to graph (dashed line at y = 0, title, y-label, xticks, number of animals)            
+        title([exp2_name ' vs ' exp1_name], 'FontSize', 10);
+        ylabel(param);
+        xlim([1.5 2.5]);
+        xticks(2);
+        xticklabels({'AE'});
+        yline(0, '--k', 'LineWidth', 0.5, 'HandleVisibility', 'off'); 
+        
+        if strcmp(param, 'coo_body')
+            ylim([-2 3]);
+        elseif strcmp(param, 'double_support')
+            ylim([-5 3]);
+        elseif strcmp(param, 'step_length')
+            ylim([-3 4]);
+        end
+        
+        if strcmp(param, 'double_support')
+            set(gca, 'YDir', 'reverse');
+        else
+        end
+        
+        annotation('textbox', [0.58, 0.52, 0.1, 0.1], 'String', [exp2_name ' vs ' exp1_name], 'EdgeColor', 'none', 'FontSize', 8, 'FontWeight', 'bold');
+        annotation('textbox', [0.2, 0.82, 0.1, 0.1], 'String', ['p = ', num2str(pT_ae(q))], 'EdgeColor', 'none', 'FontSize', 8);
+
+        create_folder_path(fullfile(fileFolder2, pathNew));
+        
+        saveas(fig2, fullfile(fileFolder2, pathNew, ['AE_', exp2_name, '_vs_', exp1_name, '-', limb_label{q}, ' ', param, '.png']));
+        saveas(fig2, fullfile(fileFolder2, pathNew, ['AE_', exp2_name, '_vs_', exp1_name, '-', limb_label{q}, ' ', param, '.fig']));
+% %------------------------------------------------------------------------------------------------------------------------------------------------------------
+    end     
+end
