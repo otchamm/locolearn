@@ -48,7 +48,7 @@ color_limb_scatter = {'ro', 'mo', 'bo', 'co'};
 color_limb_scatter_indiv = {'rd', 'md', 'bd', 'cd'};
 rgb_color_limb_indiv = {[1 0 0 0.5] [1 0 1 0.5] [0 0 1 0.5] [0 1 1 0.5]};
 
-% INDIVIDUAL + MEAN ANIMAL LIMB PARAMETERS
+%% INDIVIDUAL + MEAN ANIMAL LIMB PARAMETERS
 tic;
 
 for j = 1:length(ds)
@@ -63,12 +63,29 @@ for j = 1:length(ds)
     end
 end
 
-% PHASE COMPARISONS BY LIMB, EXPERIMENT
+%% INDIVIDUAL + MEDIAN LIMB PLOTS
+tic;
+for j = 1:length(ds)
+    create_folder_path(ds{j}.output_path);
+    
+    for p = 1:length(params)
+            indiv_limbs_medians_bs(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.show_trials, ds{j}.data, color_limb, rgb_color_limb, ds{j}.caption, ds{j}.output_path);
+            indiv_limbs_medians_animals_bs(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.show_trials, ds{j}.data, rgb_color_limb_indiv, ds{j}.caption, ds{j}.output_path);
+    end
+end
+
+duration = toc;
+fprintf('Time Elapsed: %.4f seconds\n', duration);
+
+%% PHASE COMPARISONS BY LIMB, EXPERIMENT
+tic;
 for d = 1:length(calcAdpt)
     for p = 1:length(params)
         for j = 1:length(ds)
             create_folder_path(ds{j}.output_path);
             [y, all_ie, all_adpt, all_ae] = plot_indiv_limbs_a_ae_comparisons(params{p}, param_labels{p}, ds{j}.animals, limbs, ds{j}.data, calcAdpt{d}, calcAfterE{d}, color_limb_scatter, ds{j}.caption, ds{j}.output_path); hold on;
+            [y, all_ie, all_adpt, all_ae, newPath] = plot_indiv_limbs_a_ae_comparisons_medians(params{p}, ds{j}.animals, ds{j}.data, calcAdpt{d}, calcAfterE{d}); hold on;
+
 
             all_ies{j} = all_ie;
             all_adpts{j} = all_adpt;
