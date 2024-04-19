@@ -24,7 +24,7 @@ limb_names = {'FR' 'HR' 'FL' 'HL'};
 
 % Select the experiments you want to compare
 %DTX RIGHTF = 1, PBS RIGHTF = 2, DTX LEFTF = 3, PBS LEFTF = 4, PRE DTX RIGHTF = 5, PRE PBS RIGHTF = 6, PRE DTX LEFTF = 7, PRE PBS LEFTF = 8
-plot_list = {1}; %[2,6]}; %{[1,5], [2,6], [3,7], [4,8]}; %{[1,3] [2,4]}; %
+plot_list = {[1,5], [2,6], [3,7], [4,8]};
 
 %Determine how to calculate A and AE
 calcAdpt = {'1 late 1 early', '2 late 1 early'};
@@ -47,9 +47,6 @@ rgb_color_limb = {[1 0 0] [1 0 1] [0 0 1] [0 1 1]};
 color_limb_scatter = {'ro', 'mo', 'bo', 'co'};
 color_limb_scatter_indiv = {'rd', 'md', 'bd', 'cd'};
 rgb_color_limb_indiv = {[1 0 0 0.5] [1 0 1 0.5] [0 0 1 0.5] [0 1 1 0.5]};
-
-% color_limb = {'ro', 'mo', 'bo', 'co'}; %For tied sessions
-% rgb_color_limb = {[1 0 0] [1 0 1] [0 0 1] [0 1 1]};
 
 % INDIVIDUAL + MEAN ANIMAL LIMB PARAMETERS
 tic;
